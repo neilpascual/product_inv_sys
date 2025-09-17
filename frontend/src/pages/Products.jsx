@@ -7,6 +7,7 @@ import * as Yup from "yup";
 function Products() {
   const [products, setProducts] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   // Fetch products
   useEffect(() => {
@@ -33,16 +34,46 @@ function Products() {
       .positive("Must be greater than 0"),
   });
 
-  // Handle form submit
+  // Handle add or update submit
   const handleSubmit = (values, { resetForm }) => {
-    axios
-      .post("http://localhost:3003/", values)
-      .then(() => {
-        fetchProducts();
-        resetForm();
-        setShowForm(false);
-      })
-      .catch((err) => console.error(err));
+    if (editingProduct) {
+      // update
+      axios
+        .put(`http://localhost:3003/${editingProduct.id}`, values)
+        .then(() => {
+          fetchProducts();
+          resetForm();
+          setShowForm(false);
+          setEditingProduct(null);
+        })
+        .catch((err) => console.error(err));
+    } else {
+      // add
+      axios
+        .post("http://localhost:3003/products", values)
+        .then(() => {
+          fetchProducts();
+          resetForm();
+          setShowForm(false);
+        })
+        .catch((err) => console.error(err));
+    }
+  };
+
+  // Handle edit button
+  const handleEdit = (product) => {
+    setEditingProduct(product);
+    setShowForm(true);
+  };
+
+  // Handle delete button
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
+      axios
+        .delete(`http://localhost:3003/${id}`)
+        .then(() => fetchProducts())
+        .catch((err) => console.error(err));
+    }
   };
 
   return (
@@ -53,17 +84,26 @@ function Products() {
         <div className="flex justify-between mb-3">
           <h1 className="text-3xl font-bold mb-6">Products</h1>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setEditingProduct(null);
+              setShowForm(!showForm);
+            }}
             className="bg-green-500 px-3 py-1 rounded-2xl text-white font-medium"
           >
             {showForm ? "Close" : "Add Product"}
           </button>
         </div>
 
-        {/* Add Product Form */}
+        {/* Add / Edit Product Form */}
         {showForm && (
           <Formik
-            initialValues={{ pName: "", pDesc: "", pQuantity: "", pPrice: "" }}
+            initialValues={{
+              pName: editingProduct?.pName || "",
+              pDesc: editingProduct?.pDesc || "",
+              pQuantity: editingProduct?.pQuantity || "",
+              pPrice: editingProduct?.pPrice || "",
+            }}
+            enableReinitialize
             validationSchema={ProductSchema}
             onSubmit={handleSubmit}
           >
@@ -75,7 +115,7 @@ function Products() {
                       type="text"
                       name="pName"
                       placeholder="Product Name"
-                      className="border p-2 rounded w-full bg-white"
+                      className="border p-2 rounded w-full"
                     />
                     <ErrorMessage
                       name="pName"
@@ -89,7 +129,7 @@ function Products() {
                       type="text"
                       name="pDesc"
                       placeholder="Description"
-                      className="border p-2 rounded w-full bg-white"
+                      className="border p-2 rounded w-full"
                     />
                     <ErrorMessage
                       name="pDesc"
@@ -103,7 +143,7 @@ function Products() {
                       type="number"
                       name="pQuantity"
                       placeholder="Quantity"
-                      className="border p-2 rounded w-full bg-white"
+                      className="border p-2 rounded w-full"
                     />
                     <ErrorMessage
                       name="pQuantity"
@@ -117,7 +157,7 @@ function Products() {
                       type="number"
                       name="pPrice"
                       placeholder="Price"
-                      className="border p-2 rounded w-full bg-white"
+                      className="border p-2 rounded w-full"
                     />
                     <ErrorMessage
                       name="pPrice"
@@ -132,7 +172,11 @@ function Products() {
                   disabled={isSubmitting}
                   className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                 >
-                  {isSubmitting ? "Saving..." : "Add"}
+                  {isSubmitting
+                    ? "Saving..."
+                    : editingProduct
+                    ? "Update Product"
+                    : "Add Product"}
                 </button>
               </Form>
             )}
@@ -152,6 +196,7 @@ function Products() {
                   <th className="px-4 py-2 text-left">Description</th>
                   <th className="px-4 py-2 text-left">Quantity</th>
                   <th className="px-4 py-2 text-left">Price</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,6 +210,20 @@ function Products() {
                     <td className="px-4 py-2">{product.pDesc}</td>
                     <td className="px-4 py-2">{product.pQuantity}</td>
                     <td className="px-4 py-2">₱{product.pPrice}</td>
+                    <td className="px-4 py-2 space-x-2">
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="bg-yellow-400 px-2 py-1 rounded-2xl text-white"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="bg-red-500 px-2 py-1 rounded-2xl text-white"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
