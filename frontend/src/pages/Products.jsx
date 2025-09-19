@@ -1,238 +1,139 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import Sidebar from "../components/Sidebar";
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
 
-function Products() {
+export default function Products() {
   const [products, setProducts] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    price: "",
+    stock: "",
+  });
 
-  // Fetch products
+  // Load products from backend
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = () => {
-    axios
-      .get("http://localhost:3003/")
-      .then((res) => setProducts(res.data))
-      .catch((err) => console.error(err));
-  };
-
-  // Validation schema
-  const ProductSchema = Yup.object().shape({
-    pName: Yup.string().required("Product name is required"),
-    pDesc: Yup.string().required("Description is required"),
-    pQuantity: Yup.number()
-      .required("Quantity is required")
-      .positive("Must be positive")
-      .integer("Must be an integer"),
-    pPrice: Yup.number()
-      .required("Price is required")
-      .positive("Must be greater than 0"),
-  });
-
-  // Handle add or update submit
-  const handleSubmit = (values, { resetForm }) => {
-    if (editingProduct) {
-      // update
-      axios
-        .put(`http://localhost:3003/${editingProduct.id}`, values)
-        .then(() => {
-          fetchProducts();
-          resetForm();
-          setShowForm(false);
-          setEditingProduct(null);
-        })
-        .catch((err) => console.error(err));
-    } else {
-      // add
-      axios
-        .post("http://localhost:3003/products", values)
-        .then(() => {
-          fetchProducts();
-          resetForm();
-          setShowForm(false);
-        })
-        .catch((err) => console.error(err));
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get("http://localhost:3003/");
+      setProducts(res.data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Handle edit button
-  const handleEdit = (product) => {
-    setEditingProduct(product);
-    setShowForm(true);
+  // Handle form change
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle delete button
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      axios
-        .delete(`http://localhost:3003/${id}`)
-        .then(() => fetchProducts())
-        .catch((err) => console.error(err));
+  // Add product
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post("http://localhost:3003/products", formData);
+      setFormData({ name: "", price: "", stock: "" }); // clear form
+      fetchProducts(); // refresh list
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Delete product
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://localhost:3003/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      console.error(err);
     }
   };
 
   return (
-    <div className="flex">
-      <Sidebar />
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Products</h1>
 
-      <main className="ml-64 p-6 w-full">
-        <div className="flex justify-between mb-3">
-          <h1 className="text-3xl font-bold mb-6">Products</h1>
+      {/* Add Product Form */}
+      <div className="bg-white shadow rounded-lg p-4">
+        <h2 className="text-xl font-semibold mb-4">Add New Product</h2>
+        <form
+          onSubmit={handleSubmit}
+          className="grid gap-4 md:grid-cols-2"
+        >
+          <input
+            type="text"
+            name="name"
+            placeholder="Product Name"
+            value={formData.name}
+            onChange={handleChange}
+            className="border rounded p-2 w-full"
+            required
+          />
+          <input
+            type="number"
+            name="price"
+            placeholder="Price"
+            value={formData.price}
+            onChange={handleChange}
+            className="border rounded p-2 w-full"
+            required
+          />
+          <input
+            type="number"
+            name="stock"
+            placeholder="Stock"
+            value={formData.stock}
+            onChange={handleChange}
+            className="border rounded p-2 w-full"
+            required
+          />
           <button
-            onClick={() => {
-              setEditingProduct(null);
-              setShowForm(!showForm);
-            }}
-            className="bg-green-500 px-3 py-1 rounded-2xl text-white font-medium"
+            type="submit"
+            className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
           >
-            {showForm ? "Close" : "Add Product"}
+            Add Product
           </button>
-        </div>
+        </form>
+      </div>
 
-        {/* Add / Edit Product Form */}
-        {showForm && (
-          <Formik
-            initialValues={{
-              pName: editingProduct?.pName || "",
-              pDesc: editingProduct?.pDesc || "",
-              pQuantity: editingProduct?.pQuantity || "",
-              pPrice: editingProduct?.pPrice || "",
-            }}
-            enableReinitialize
-            validationSchema={ProductSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ isSubmitting }) => (
-              <Form className="bg-gray-100 p-4 rounded-2xl mb-6 shadow">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Field
-                      type="text"
-                      name="pName"
-                      placeholder="Product Name"
-                      className="border p-2 rounded w-full"
-                    />
-                    <ErrorMessage
-                      name="pName"
-                      component="div"
-                      className="text-red-500 text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <Field
-                      type="text"
-                      name="pDesc"
-                      placeholder="Description"
-                      className="border p-2 rounded w-full"
-                    />
-                    <ErrorMessage
-                      name="pDesc"
-                      component="div"
-                      className="text-red-500 text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <Field
-                      type="number"
-                      name="pQuantity"
-                      placeholder="Quantity"
-                      className="border p-2 rounded w-full"
-                    />
-                    <ErrorMessage
-                      name="pQuantity"
-                      component="div"
-                      className="text-red-500 text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <Field
-                      type="number"
-                      name="pPrice"
-                      placeholder="Price"
-                      className="border p-2 rounded w-full"
-                    />
-                    <ErrorMessage
-                      name="pPrice"
-                      component="div"
-                      className="text-red-500 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                >
-                  {isSubmitting
-                    ? "Saving..."
-                    : editingProduct
-                    ? "Update Product"
-                    : "Add Product"}
-                </button>
-              </Form>
-            )}
-          </Formik>
-        )}
-
-        {/* Product Table */}
-        <div className="bg-white rounded-2xl shadow-xl p-4">
-          {products.length === 0 ? (
-            <p>No products found</p>
-          ) : (
-            <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="px-4 py-2 text-left">ID</th>
-                  <th className="px-4 py-2 text-left">Name</th>
-                  <th className="px-4 py-2 text-left">Description</th>
-                  <th className="px-4 py-2 text-left">Quantity</th>
-                  <th className="px-4 py-2 text-left">Price</th>
-                  <th className="px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="border-t hover:bg-gray-50 transition"
+      {/* Product Table */}
+      <div className="bg-white shadow rounded-lg p-4 overflow-x-auto">
+        <table className="min-w-full border border-gray-200 text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-2 border">ID</th>
+              <th className="p-2 border">Name</th>
+              <th className="p-2 border">Description</th>
+              <th className="p-2 border">Price</th>
+              <th className="p-2 border">Stock</th>
+              <th className="p-2 border">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p.id} className="text-center">
+                <td className="p-2 border">{p.id}</td>
+                <td className="p-2 border">{p.pName}</td>
+                <td className="p-2 border">{p.pDesc}</td>
+                <td className="p-2 border">PHP{p.pPrice}</td>
+                <td className="p-2 border">{p.pQuantity}</td>
+                <td className="p-2 border">
+                  <button className="bg-yellow-500 text-white px-3 py-1 rounded mr-2 hover:bg-yellow-600">
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
                   >
-                    <td className="px-4 py-2">{product.id}</td>
-                    <td className="px-4 py-2">{product.pName}</td>
-                    <td className="px-4 py-2">{product.pDesc}</td>
-                    <td className="px-4 py-2">{product.pQuantity}</td>
-                    <td className="px-4 py-2">₱{product.pPrice}</td>
-                    <td className="px-4 py-2 space-x-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="bg-yellow-400 px-2 py-1 rounded-2xl text-white"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="bg-red-500 px-2 py-1 rounded-2xl text-white"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
-
-export default Products;
